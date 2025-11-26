@@ -14,7 +14,7 @@ Participants will gain practical insights into running LLMs locally, integrating
 2. **Code Editor:** VS Code (recommended) || PyCharm || Cursor
 3. **Ollama:** Download and install from [ollama.com](https://ollama.com)
 4. **Pull Base Models** (Run in terminal):
-   - `ollama pull llama3.1:8b` || `ollama pull qwen3:8b`
+   - `ollama pull llama3.1:latest` || `ollama pull qwen3:8b`
    - `ollama pull nomic-embed-text`
 5. **Git:** Installed
 
