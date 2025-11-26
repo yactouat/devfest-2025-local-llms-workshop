@@ -36,10 +36,12 @@ def main():
 
     # Initialize connection to local Ollama
     # Default endpoint is http://localhost:11434
+    # For thinking models, enable reasoning to parse "<think>" blocks
     print(f"Connecting to Ollama with model: {model_name}...")
     llm = ChatOllama(
         model=model_name,
-        temperature=0,  # Deterministic responses
+        temperature=0.6,  # Some randomness for more natural responses
+        reasoning=True if args.thinking else False,  # Enable reasoning for thinking models
     )
     print("✓ Connected to Ollama")
     print()
@@ -55,15 +57,26 @@ def main():
     # Invoke the model
     response = llm.invoke(question)
 
-    # Display the response
-    # For thinking models, the response may include reasoning
+    # For thinking models, display the reasoning trace first
     if args.thinking:
-        print("\n[THINKING MODEL RESPONSE]")
-        print("\nThe thinking model processes the query and may show reasoning.")
-        print("Note: The model's internal thinking is embedded in the response.\n")
+        # The Thinking Trace (Reasoning)
+        # This is where the model's hidden "thought process" is stored
+        reasoning = response.additional_kwargs.get("reasoning_content")
+        if reasoning:
+            print("### Thinking Trace ###")
+            print(reasoning)
+            print("\n" + "="*60 + "\n")
+        else:
+            print("No reasoning trace found (Model might not have generated one).")
+            print()
 
+    # The Final Answer
+    if args.thinking:
+        print("### Final Answer ###")
     print(response.content)
+    
     print("-" * 60)
+    
     print()
 
     print("Observation:")
@@ -73,8 +86,14 @@ def main():
     if args.thinking:
         print()
         print("Thinking Model Note:")
-        print("The qwen3:8b model is a thinking model that can expose its reasoning.")
-        print("This helps understand how the model arrives at its conclusions.")
+        print("The qwen3:8b model is a thinking model that exposes its reasoning process.")
+        print("With reasoning=True, LangChain parses '<think>' blocks and moves them")
+        print("to response.additional_kwargs['reasoning_content']. This helps understand")
+        print("how the model arrives at its conclusions.")
+        print()
+        print("Try comparing with the non-thinking model:")
+        print("  • Without --thinking: python3 01_local_llm/hello_world.py")
+        print("  • With --thinking: python3 01_local_llm/hello_world.py --thinking")
 
     print()
     print("Next step: We'll add a knowledge base to help the model answer")

@@ -18,7 +18,6 @@ RAG (Retrieval-Augmented Generation) Overview:
 - Query: User question → retrieve relevant chunks → generate answer
 """
 
-import os
 from pathlib import Path
 import sys
 

@@ -69,19 +69,56 @@ Thinking models expose their internal reasoning chain, similar to how a human mi
 - Debugging logical issues
 - Understanding how the model arrived at its conclusion
 
-### How to Use Thinking Models
+### How to Use Thinking Models with ChatOllama
 
-When using `qwen3:8b` with the `--verbose` flag, you can see the model's thinking process:
+LangChain's `ChatOllama` provides built-in support for parsing reasoning traces from thinking models. When you set `reasoning=True`, LangChain automatically:
+1. Parses `<think>` blocks from the model's response
+2. Moves them to `response.additional_kwargs["reasoning_content"]`
+3. Provides clean separation between thinking and final answer
+
+```python
+from langchain_ollama import ChatOllama
+
+# Initialize the model with reasoning enabled
+# 'reasoning=True' instructs LangChain to parse the "<think>" blocks 
+# and move them to response metadata.
+llm = ChatOllama(
+    model="qwen3:8b",
+    temperature=0.6,
+    reasoning=True 
+)
+
+# Invoke the model
+response = llm.invoke("Explain why the sky is blue.")
+
+# 1. The Thinking Trace (Reasoning)
+# This is where the model's hidden "thought process" is stored
+reasoning = response.additional_kwargs.get("reasoning_content")
+if reasoning:
+    print("### Thinking Trace ###")
+    print(reasoning)
+    print("\n" + "="*30 + "\n")
+else:
+    print("No reasoning trace found (Model might not have generated one).")
+
+# 2. The Final Answer
+print("### Final Answer ###")
+print(response.content)
+```
+
+### Running the Thinking Model Demo
+
+To see the reasoning traces in action:
 
 ```bash
 python3 01_local_llm/hello_world.py --thinking
 ```
 
-The model's response includes:
-- **Thinking process**: The model's internal reasoning (visible when using verbose mode)
-- **Final answer**: The actual response to your query
+The output will show:
+- **Thinking Trace**: The model's internal reasoning process (from `<think>` blocks)
+- **Final Answer**: The actual response to your query
 
-This transparency helps you understand the model's decision-making process and can be valuable for educational purposes or when debugging complex queries.
+Compare this with the standard model (without `--thinking` flag) to see the difference in output structure.
 
 ## Next Steps
 
