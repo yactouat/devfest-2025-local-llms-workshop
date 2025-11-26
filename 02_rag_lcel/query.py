@@ -71,10 +71,17 @@ def main():
         default="Who is the CEO of DevFest Corp?",
         help="Question to ask (default: 'Who is the CEO of DevFest Corp?')"
     )
+    parser.add_argument(
+        "--thinking",
+        action="store_true",
+        help="Use qwen3:8b thinking model to show reasoning process"
+    )
     args = parser.parse_args()
 
     print("=" * 60)
     print("Step 2: RAG with LCEL - Query Demo")
+    if args.thinking:
+        print("(Using Thinking Model: qwen3:8b)")
     print("=" * 60)
     print()
 
@@ -124,11 +131,15 @@ def main():
     # ========================================
     # This is the language model that will generate the final answer
     # based on the retrieved context
-    print("🔗 Connecting to Ollama LLM...")
+    # Choose model based on --thinking flag
+    model_name = "qwen3:8b" if args.thinking else "llama3.1:latest"
+
+    print(f"🔗 Connecting to Ollama LLM ({model_name})...")
     llm = ChatOllama(
-        model="llama3.1:latest",
+        model=model_name,
         temperature=0,  # 0 = deterministic, 1 = creative
                         # For factual Q&A, we want deterministic responses
+        reasoning=True if args.thinking else False,  # Enable reasoning for thinking models
     )
     print("✓ LLM initialized")
     print()
@@ -257,14 +268,38 @@ Answer:"""
         print("💭 Generating answer using LCEL chain...")
         print()
 
-        # The magic happens here - LCEL handles all the data flow automatically
-        # No need to manually pass data between components!
-        answer = chain.invoke(question)
+        # For thinking models, we need to get the full response to access reasoning
+        if args.thinking:
+            # Build a chain without the output parser to get full response
+            chain_with_reasoning = (
+                {
+                    "context": retriever | format_docs,
+                    "question": RunnablePassthrough()
+                }
+                | prompt
+                | llm
+            )
+            response = chain_with_reasoning.invoke(question)
 
-        print("Answer:")
-        print("-" * 60)
-        print(answer)
-        print("-" * 60)
+            # Display the reasoning trace
+            reasoning = response.additional_kwargs.get("reasoning_content")
+            if reasoning:
+                print("### Thinking Trace ###")
+                print(reasoning)
+                print("\n" + "="*60 + "\n")
+
+            # Display the final answer
+            print("### Final Answer ###")
+            print(response.content)
+        else:
+            # The magic happens here - LCEL handles all the data flow automatically
+            # No need to manually pass data between components!
+            answer = chain.invoke(question)
+
+            print("Answer:")
+            print("-" * 60)
+            print(answer)
+            print("-" * 60)
         print()
 
     # ========================================

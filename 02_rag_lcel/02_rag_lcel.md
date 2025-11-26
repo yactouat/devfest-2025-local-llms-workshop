@@ -16,6 +16,7 @@ Before starting this step, ensure you have:
 - How to build sequential chains using the pipe operator
 - How to store and retrieve embeddings from SQLite
 - How RAG solves the "Context Horizon" problem
+- How to use thinking models (qwen3:8b) to expose reasoning in RAG pipelines
 
 ## The Architecture
 
@@ -180,6 +181,34 @@ Run in interactive mode to ask multiple questions:
 python3 02_rag_lcel/query.py --interactive
 ```
 
+### 4. Thinking Model Mode
+
+Use the `--thinking` flag to leverage the `qwen3:8b` thinking model, which shows its reasoning process:
+
+```bash
+python3 02_rag_lcel/query.py --thinking
+```
+
+Or combine with interactive mode:
+
+```bash
+python3 02_rag_lcel/query.py --interactive --thinking
+```
+
+**What's Different with Thinking Models?**
+
+Thinking models like `qwen3:8b` expose their internal reasoning process. When using the `--thinking` flag:
+- The model generates a "thinking trace" that shows how it processes the context and arrives at its answer
+- LangChain's `reasoning=True` parameter parses the `<think>` blocks from the model output
+- The reasoning is extracted to `response.additional_kwargs['reasoning_content']`
+- You see both the **reasoning trace** (the "how") and the **final answer** (the "what")
+
+This is particularly useful in RAG scenarios because you can see:
+- How the model interprets the retrieved context
+- Which parts of the context it considers relevant
+- How it connects the context to the question
+- The logical steps it takes to formulate the answer
+
 ## Code Structure
 
 ```
@@ -230,6 +259,7 @@ chain = (
 3. **Sequential chains work** for deterministic, linear pipelines
 4. **Vector databases** enable efficient similarity search
 5. **Context management** is crucial for performance and cost
+6. **Thinking models** (like `qwen3:8b`) expose their reasoning process, making it easier to understand and debug RAG pipelines
 
 ## Next Steps
 
@@ -248,8 +278,13 @@ Proceed to **Step 3: LangGraph ReAct** where we'll add dynamic decision-making a
 **Issue**: Ollama connection refused
 - **Solution**: Verify Ollama is running with `ollama serve`
 
-**Issue**: Model not found
+**Issue**: Model not found (llama3.1:latest or qwen3:8b)
+- **Solution**: Pull the models with `ollama pull llama3.1:latest` and `ollama pull qwen3:8b`
 - **Solution**: Pull the embedding model with `ollama pull nomic-embed-text`
 
 **Issue**: Empty results from retriever
 - **Solution**: Re-run `ingest.py` to ensure knowledge base is properly embedded
+
+**Issue**: No reasoning trace when using `--thinking`
+- **Solution**: Ensure you're using `qwen3:8b` or another thinking model that generates `<think>` blocks
+- **Solution**: Verify `reasoning=True` is set in the `ChatOllama` initialization
