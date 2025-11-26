@@ -117,7 +117,9 @@ def main():
     import sqlite3
     connection = sqlite3.connect(str(db_path), check_same_thread=False)  # Allow multi-threading
     connection.enable_load_extension(True)                                # Enable extensions
-    connection.row_factory = sqlite3.Row                                  # Return rows as dicts
+    # row_factory determines how rows are returned from queries - sqlite3.Row allows
+    # accessing columns by name (row['column']) instead of just by index (row[0])
+    connection.row_factory = sqlite3.Row
     import sqlite_vss
     sqlite_vss.load(connection)                                           # Load VSS extension
     connection.enable_load_extension(False)                               # Disable for security

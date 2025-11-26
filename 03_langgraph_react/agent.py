@@ -23,6 +23,7 @@ Key Concepts:
 
 import argparse
 from pathlib import Path
+import sqlite3
 import sys
 from typing import Annotated
 
@@ -31,10 +32,7 @@ from typing import Annotated
 __import__('pysqlite3')
 sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
-# Add parent directory to path to import utils
-sys.path.insert(0, str(Path(__file__).parent.parent))
-from utils import get_available_model
-
+import sqlite_vss
 from langchain_ollama import ChatOllama, OllamaEmbeddings
 from langchain_community.vectorstores import SQLiteVSS
 from langchain_core.messages import HumanMessage, AIMessage
@@ -43,6 +41,10 @@ from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 from pydantic import BaseModel, Field, ConfigDict
+
+# Add parent directory to path to import utils
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from utils import get_available_model
 
 
 # ========================================
@@ -61,8 +63,54 @@ class AgentState(BaseModel):
     The 'messages' field tracks the entire conversation history,
     including user queries, agent responses, tool calls, and tool outputs.
     """
+    # arbitrary_types_allowed = True
+    # ==============================
+    # This Pydantic configuration setting allows the model to accept fields with types
+    # that Pydantic normally doesn't support or validate (like custom classes, complex objects, etc.).
+    #
+    # WHY WE NEED THIS:
+    # - LangChain's message objects (HumanMessage, AIMessage, ToolMessage, etc.) are complex
+    #   custom classes that don't follow Pydantic's standard validation patterns
+    # - Without this setting, Pydantic would raise validation errors when trying to store
+    #   these message objects in our state
+    # - This is required for LangGraph state management when using LangChain messages
+    #
+    # IMPORTANT: This disables some of Pydantic's type checking for these fields,
+    # so use it only when necessary (like with LangChain framework objects)
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
+    # add_messages Operator
+    # ======================
+    # The Annotated[list, add_messages] syntax combines type hints with LangGraph-specific behavior:
+    #
+    # 1. WHAT IS IT?
+    #    - 'add_messages' is a special LangGraph reducer/operator function
+    #    - It defines HOW state updates are merged when new messages arrive
+    #    - Without it, new messages would REPLACE the entire list instead of appending
+    #
+    # 2. HOW IT WORKS:
+    #    - When a node returns {"messages": [new_msg]}, LangGraph needs to know:
+    #      Should it replace the old messages or append to them?
+    #    - add_messages tells LangGraph: "Append these new messages to the existing list"
+    #    - It intelligently handles message deduplication and updates
+    #
+    # 3. WHY WE NEED IT:
+    #    - Preserves conversation history across multiple agent/tool invocations
+    #    - Each node can add messages without worrying about losing previous context
+    #    - Essential for the ReAct loop where agent → tools → agent needs full history
+    #
+    # 4. SMART BEHAVIOR:
+    #    - If a message with the same ID exists, it gets updated (not duplicated)
+    #    - New messages are appended to the end
+    #    - Maintains chronological order of the conversation
+    #
+    # EXAMPLE:
+    #   Initial state: messages = [HumanMessage("Hi")]
+    #   Node returns: {"messages": [AIMessage("Hello!")]}
+    #   Result: messages = [HumanMessage("Hi"), AIMessage("Hello!")]  ← APPENDED, not replaced!
+    #
+    # WITHOUT add_messages, the result would be:
+    #   Result: messages = [AIMessage("Hello!")]  ← REPLACED the entire list!
     messages: Annotated[list, add_messages] = Field(
         default_factory=list,
         description="List of messages in the conversation"
@@ -101,11 +149,9 @@ def lookup_policy(query: str) -> str:
     embeddings = OllamaEmbeddings(model="nomic-embed-text")
 
     # Load vector store
-    import sqlite3
     connection = sqlite3.connect(str(db_path), check_same_thread=False)
     connection.enable_load_extension(True)
     connection.row_factory = sqlite3.Row
-    import sqlite_vss
     sqlite_vss.load(connection)
     connection.enable_load_extension(False)
 
