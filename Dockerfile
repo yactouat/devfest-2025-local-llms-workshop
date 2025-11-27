@@ -18,8 +18,7 @@ COPY requirements.txt .
 # Remove problematic packages that are not available on all platforms
 RUN grep -v -E "(pysqlite3-binary|sqlite-vss)" requirements.txt > /tmp/requirements.txt && \
     echo "chromadb" >> /tmp/requirements.txt && \
-    pip install --no-cache-dir -r /tmp/requirements.txt && \
-    (pip install --no-cache-dir sqlite-vss || echo "sqlite-vss not available, using chromadb instead")
+    pip install --no-cache-dir -r /tmp/requirements.txt
 
 # Copy application code
 COPY . .

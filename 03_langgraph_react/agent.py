@@ -35,9 +35,15 @@ try:
 except ImportError:
     pass  # Use standard sqlite3
 
-import sqlite_vss
+# Try to use SQLiteVSS if available, otherwise fall back to Chroma
+try:
+    import sqlite_vss
+    from langchain_community.vectorstores import SQLiteVSS
+    USE_SQLITE_VSS = True
+except ImportError:
+    from langchain_community.vectorstores import Chroma
+    USE_SQLITE_VSS = False
 from langchain_ollama import ChatOllama, OllamaEmbeddings
-from langchain_community.vectorstores import SQLiteVSS
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.tools import tool
 from langgraph.graph import StateGraph, END
@@ -144,25 +150,32 @@ def lookup_policy(query: str) -> str:
     # Setup database connection
     script_dir = Path(__file__).parent
     db_path = script_dir.parent / "devfest.db"
-
-    if not db_path.exists():
-        return "Error: Knowledge base not found. Please run 02_rag_lcel/ingest.py first."
+    chroma_path = script_dir.parent / "data" / "chroma_db"
 
     # Initialize embeddings (must match ingestion)
     embeddings = OllamaEmbeddings(model="nomic-embed-text")
 
-    # Load vector store
-    connection = sqlite3.connect(str(db_path), check_same_thread=False)
-    connection.enable_load_extension(True)
-    connection.row_factory = sqlite3.Row
-    sqlite_vss.load(connection)
-    connection.enable_load_extension(False)
+    if USE_SQLITE_VSS and db_path.exists():
+        # Use SQLiteVSS if available
+        connection = sqlite3.connect(str(db_path), check_same_thread=False)
+        connection.enable_load_extension(True)
+        connection.row_factory = sqlite3.Row
+        sqlite_vss.load(connection)
+        connection.enable_load_extension(False)
 
-    vectorstore = SQLiteVSS(
-        table="devfest_knowledge",
-        embedding=embeddings,
-        connection=connection,
-    )
+        vectorstore = SQLiteVSS(
+            table="devfest_knowledge",
+            embedding=embeddings,
+            connection=connection,
+        )
+    elif chroma_path.exists():
+        # Fall back to ChromaDB
+        vectorstore = Chroma(
+            persist_directory=str(chroma_path),
+            embedding_function=embeddings,
+        )
+    else:
+        return "Error: Knowledge base not found. Please run 02_rag_lcel/ingest.py first."
 
     # Search for relevant documents
     results = vectorstore.similarity_search(query, k=3)
