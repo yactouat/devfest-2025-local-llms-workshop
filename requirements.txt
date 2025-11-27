@@ -4,8 +4,10 @@ langchain-core
 langchain-experimental
 langchain-google-genai
 langchain-ollama
+langchain-google-genai
 langgraph
 pydantic
 pysqlite3-binary
 python-dotenv
 sqlite-vss
+python-dotenv

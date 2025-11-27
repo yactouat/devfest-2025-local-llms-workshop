@@ -5,6 +5,7 @@ Utility functions for the DevFest 2025 Local LLMs Workshop.
 This module provides helper functions used across multiple demo scripts.
 """
 
+import os
 import subprocess
 import sys
 
@@ -73,13 +74,44 @@ def get_available_model(prefer_thinking: bool = False, use_cloud: bool = False) 
                 "  ollama pull llama3.1:latest"
             )
 
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(
-                f"Failed to query Ollama models: {e}\n"
-                "Make sure Ollama is installed and running."
-            ) from e
-        except FileNotFoundError:
-            raise RuntimeError(
-                "Ollama command not found. Please install Ollama first:\n"
-                "Visit https://ollama.ai for installation instructions."
-            ) from None
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(
+            f"Failed to query Ollama models: {e}\n"
+            "Make sure Ollama is installed and running."
+        ) from e
+    except FileNotFoundError:
+        raise RuntimeError(
+            "Ollama command not found. Please install Ollama first:\n"
+            "Visit https://ollama.ai for installation instructions."
+        ) from None
+
+
+def get_google_model(prefer_thinking: bool = False) -> str:
+    """
+    Get a Google AI model name.
+
+    Args:
+        prefer_thinking: If True, use a more capable model (gemini-1.5-pro).
+                        If False, use a faster model (gemini-1.5-flash).
+
+    Returns:
+        str: The name of the Google AI model to use
+
+    Example:
+        >>> model = get_google_model(prefer_thinking=True)
+        >>> llm = ChatGoogleGenerativeAI(model=model)
+    """
+    if prefer_thinking:
+        return "gemini-2.5-pro"
+    else:
+        return "gemini-2.5-flash"
+
+
+def check_google_api_key() -> bool:
+    """
+    Check if Google API key is set in environment.
+
+    Returns:
+        bool: True if GOOGLE_API_KEY is set, False otherwise
+    """
+    return bool(os.getenv("GOOGLE_API_KEY"))

@@ -23,6 +23,10 @@ LCEL (LangChain Expression Language):
 import argparse
 from pathlib import Path
 import sys
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # IMPORTANT: Use pysqlite3 instead of built-in sqlite3
 # pysqlite3 supports the VSS (Vector Similarity Search) extension
@@ -32,10 +36,10 @@ sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
 # Add parent directory to path to import utils
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from utils import get_available_model
+from utils import get_available_model, get_google_model, check_google_api_key
 
 from langchain_ollama import ChatOllama, OllamaEmbeddings
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_community.vectorstores import SQLiteVSS
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
@@ -81,12 +85,19 @@ def main():
         action="store_true",
         help="Use qwen3:8b thinking model to show reasoning process"
     )
+    parser.add_argument(
+        "--google",
+        action="store_true",
+        help="Use Google AI instead of local Ollama (requires GOOGLE_API_KEY env var)"
+    )
     args = parser.parse_args()
 
     print("=" * 60)
     print("Step 2: RAG with LCEL - Query Demo")
+    if args.google:
+        print("(Using Google AI)")
     if args.thinking:
-        print("(Using Thinking Model: qwen3:8b)")
+        print("(Using Thinking Model)")
     print("=" * 60)
     print()
 
@@ -139,17 +150,33 @@ def main():
     # ========================================
     # This is the language model that will generate the final answer
     # based on the retrieved context
-    # Choose model based on --thinking flag and availability
-    model_name = get_available_model(prefer_thinking=args.thinking)
+    if args.google:
+        # Check for API key
+        if not check_google_api_key():
+            print("❌ Error: GOOGLE_API_KEY environment variable not set.")
+            print("Please set it in your .env file or with: export GOOGLE_API_KEY='your-api-key'")
+            sys.exit(1)
+        
+        model_name = get_google_model(prefer_thinking=args.thinking)
+        print(f"🔗 Connecting to Google AI ({model_name})...")
+        llm = ChatGoogleGenerativeAI(
+            model=model_name,
+            temperature=0,  # 0 = deterministic, 1 = creative
+                            # For factual Q&A, we want deterministic responses
+        )
+        print("✓ LLM initialized")
+    else:
+        # Choose model based on --thinking flag and availability
+        model_name = get_available_model(prefer_thinking=args.thinking)
 
-    print(f"🔗 Connecting to Ollama LLM ({model_name})...")
-    llm = ChatOllama(
-        model=model_name,
-        temperature=0,  # 0 = deterministic, 1 = creative
-                        # For factual Q&A, we want deterministic responses
-        reasoning=True if args.thinking else False,  # Enable reasoning for thinking models
-    )
-    print("✓ LLM initialized")
+        print(f"🔗 Connecting to Ollama LLM ({model_name})...")
+        llm = ChatOllama(
+            model=model_name,
+            temperature=0,  # 0 = deterministic, 1 = creative
+                            # For factual Q&A, we want deterministic responses
+            reasoning=True if args.thinking else False,  # Enable reasoning for thinking models
+        )
+        print("✓ LLM initialized")
     print()
 
     # ========================================
@@ -277,7 +304,7 @@ Answer:"""
         print()
 
         # For thinking models, we need to get the full response to access reasoning
-        if args.thinking:
+        if args.thinking and not args.google:
             # Build a chain without the output parser to get full response
             chain_with_reasoning = (
                 {

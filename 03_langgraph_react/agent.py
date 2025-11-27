@@ -26,6 +26,10 @@ from pathlib import Path
 import sqlite3
 import sys
 from typing import Annotated
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # IMPORTANT: Use pysqlite3 instead of built-in sqlite3
 # pysqlite3 supports the VSS (Vector Similarity Search) extension
@@ -34,6 +38,7 @@ sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
 import sqlite_vss
 from langchain_ollama import ChatOllama, OllamaEmbeddings
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_community.vectorstores import SQLiteVSS
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.tools import tool
@@ -44,7 +49,7 @@ from pydantic import BaseModel, Field, ConfigDict
 
 # Add parent directory to path to import utils
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from utils import get_available_model
+from utils import get_available_model, get_google_model, check_google_api_key
 
 
 # ========================================
@@ -384,23 +389,44 @@ def main():
         action="store_true",
         help="Use qwen3:8b thinking model to show reasoning process"
     )
+    parser.add_argument(
+        "--google",
+        action="store_true",
+        help="Use Google AI instead of local Ollama (requires GOOGLE_API_KEY env var)"
+    )
     args = parser.parse_args()
 
     print("=" * 60)
     print("Step 3: LangGraph ReAct Agent")
+    if args.google:
+        print("(Using Google AI)")
     if args.thinking:
-        print("(Using Thinking Model: qwen3:8b)")
+        print("(Using Thinking Model)")
     print("=" * 60)
     print()
 
     # Initialize LLM
-    model_name = get_available_model(prefer_thinking=args.thinking)
-    print(f"🔗 Initializing LLM ({model_name})...")
-    llm = ChatOllama(
-        model=model_name,
-        temperature=0,
-        reasoning=True if args.thinking else False,
-    )
+    if args.google:
+        # Check for API key
+        if not check_google_api_key():
+            print("❌ Error: GOOGLE_API_KEY environment variable not set.")
+            print("Please set it in your .env file or with: export GOOGLE_API_KEY='your-api-key'")
+            sys.exit(1)
+        
+        model_name = get_google_model(prefer_thinking=args.thinking)
+        print(f"🔗 Initializing Google AI LLM ({model_name})...")
+        llm = ChatGoogleGenerativeAI(
+            model=model_name,
+            temperature=0,
+        )
+    else:
+        model_name = get_available_model(prefer_thinking=args.thinking)
+        print(f"🔗 Initializing LLM ({model_name})...")
+        llm = ChatOllama(
+            model=model_name,
+            temperature=0,
+            reasoning=True if args.thinking else False,
+        )
 
     # Bind tools to LLM
     tools = [lookup_policy, search_tech_events]
@@ -464,7 +490,7 @@ def main():
         print("Final Answer:")
         print("=" * 60)
 
-        if args.thinking and hasattr(final_message, 'additional_kwargs'):
+        if args.thinking and not args.google and hasattr(final_message, 'additional_kwargs'):
             reasoning = final_message.additional_kwargs.get("reasoning_content")
             if reasoning:
                 print()
