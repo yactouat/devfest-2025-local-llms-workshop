@@ -234,7 +234,7 @@ In `query.py`, the main LCEL chain looks like this:
 
 ```python
 # Retriever gets relevant docs
-retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+retriever = vectorstore.as_retriever(search_kwargs={"k": 5})  # Retrieve top 5 chunks
 
 # Chain components together
 chain = (
@@ -246,7 +246,7 @@ chain = (
 ```
 
 **What happens:**
-1. `retriever` - Finds 3 most similar documents
+1. `retriever` - Finds 5 most similar documents
 2. `format_docs` - Formats them as a single context string
 3. `prompt` - Injects context and question into template
 4. `model` - Generates answer based on prompt
