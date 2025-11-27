@@ -42,23 +42,26 @@ def main():
     print()
 
     # Choose model based on flag and availability
-    # model_name = get_available_model(prefer_thinking=args.thinking)
-    model_name = get_available_model(prefer_thinking=args.thinking, use_cloud=True)
+    model_name = get_available_model(prefer_thinking=args.thinking)
+
+    # ! if you need to use a Cloud Model uncomment this line and comment the line above
+    # model_name = get_available_model(prefer_thinking=args.thinking, use_cloud=True)
 
     # Initialize connection to local Ollama
     # Default endpoint is http://localhost:11434
     # For thinking models, enable reasoning to parse "<think>" blocks
     print(f"Connecting to Ollama with model: {model_name}...")
-    # llm = ChatOllama(
-    #     model=model_name,
-    #     temperature=0.0,  # Some randomness for more natural responses
-    #     reasoning=True if args.thinking else False,  # Enable reasoning for thinking models
-    # )
-
-    llm = ChatGoogleGenerativeAI(
+    llm = ChatOllama(
         model=model_name,
-        temperature=0,
+        temperature=0.0,  # Some randomness for more natural responses
+        reasoning=True if args.thinking else False,  # Enable reasoning for thinking models
     )
+
+    # ! same goes for the Google Cloud Model
+    # llm = ChatGoogleGenerativeAI(
+    #     model=model_name,
+    #     temperature=0,
+    # )
 
     print(f"✓ Connected to {model_name}")
     print()
