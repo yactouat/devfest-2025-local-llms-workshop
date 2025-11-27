@@ -6,6 +6,8 @@ langchain-google-genai
 langchain-ollama
 langgraph
 pydantic
+python-dotenv
+chromadb
 pysqlite3-binary
 python-dotenv
 sqlite-vss
