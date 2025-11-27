@@ -27,10 +27,13 @@ import sqlite3
 import sys
 from typing import Annotated
 
-# IMPORTANT: Use pysqlite3 instead of built-in sqlite3
+# IMPORTANT: Use pysqlite3 instead of built-in sqlite3 if available
 # pysqlite3 supports the VSS (Vector Similarity Search) extension
-__import__('pysqlite3')
-sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+try:
+    __import__('pysqlite3')
+    sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+except ImportError:
+    pass  # Use standard sqlite3
 
 import sqlite_vss
 from langchain_ollama import ChatOllama, OllamaEmbeddings

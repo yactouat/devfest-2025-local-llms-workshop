@@ -21,16 +21,30 @@ RAG (Retrieval-Augmented Generation) Overview:
 from pathlib import Path
 import sys
 
-# IMPORTANT: Use pysqlite3 instead of built-in sqlite3
+# IMPORTANT: Use pysqlite3 instead of built-in sqlite3 if available
 # pysqlite3 supports the VSS (Vector Similarity Search) extension
 # which is required for storing and searching vector embeddings
-__import__("pysqlite3")
-sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
+try:
+    __import__("pysqlite3")
+    sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
+    print("Using pysqlite3 for vector search support")
+except ImportError:
+    print("⚠️  Warning: pysqlite3 not available, using standard sqlite3")
+    print("   Vector search may have limited functionality")
 
 from langchain_community.document_loaders import TextLoader
 from langchain_experimental.text_splitter import SemanticChunker
 from langchain_ollama import OllamaEmbeddings
-from langchain_community.vectorstores import SQLiteVSS
+
+# Try to use SQLiteVSS if available, otherwise fall back to Chroma
+try:
+    import sqlite_vss  # This is the actual dependency that fails
+    from langchain_community.vectorstores import SQLiteVSS
+    USE_SQLITE = True
+except (ImportError, ModuleNotFoundError):
+    from langchain_community.vectorstores import Chroma
+    USE_SQLITE = False
+    print("⚠️  SQLiteVSS not available, using Chroma instead")
 
 
 def main():
@@ -45,7 +59,10 @@ def main():
     script_dir = Path(__file__).parent
     knowledge_base_path = script_dir / "knowledge_base.md"
     # Database is stored at the root of the repository for sharing across demos
-    db_path = script_dir.parent / "devfest.db"
+    if USE_SQLITE:
+        db_path = script_dir.parent / "devfest.db"
+    else:
+        db_path = script_dir.parent / "chroma_db"
 
     # Validate that the knowledge base file exists
     if not knowledge_base_path.exists():
@@ -129,28 +146,41 @@ def main():
     # 1. Each chunk is converted to a vector embedding
     # 2. Vectors are stored in SQLite with the VSS extension
     # 3. An index is created for fast similarity search (k-nearest neighbors)
-    print(f"💾 Creating vector store in SQLite...")
+    storage_type = "SQLite" if USE_SQLITE else "Chroma"
+    print(f"💾 Creating vector store in {storage_type}...")
     print(f"   Database: {db_path}")
 
     # Clean slate: Remove old database if it exists to avoid conflicts
     if db_path.exists():
         print(f"   (Removing existing database)")
-        db_path.unlink()
+        if USE_SQLITE:
+            db_path.unlink()
+        else:
+            import shutil
+            shutil.rmtree(db_path)
 
-    # Create the vector store using SQLiteVSS
+    # Create the vector store using SQLiteVSS or Chroma
     # This is a one-line operation that does a lot:
-    # - Creates the SQLite database
+    # - Creates the database
     # - Generates embeddings for all chunks using the embedding model
     # - Stores vectors with metadata in a table
     # - Creates vector search indexes for fast retrieval
-    vectorstore = SQLiteVSS.from_documents(
-        documents=chunks,  # The semantic chunks we created
-        embedding=embeddings,  # The embedding model to use
-        table="devfest_knowledge",  # Name of the table in SQLite
-        db_file=str(db_path),  # Path to the database file
-    )
+    if USE_SQLITE:
+        vectorstore = SQLiteVSS.from_documents(
+            documents=chunks,  # The semantic chunks we created
+            embedding=embeddings,  # The embedding model to use
+            table="devfest_knowledge",  # Name of the table in SQLite
+            db_file=str(db_path),  # Path to the database file
+        )
+    else:
+        vectorstore = Chroma.from_documents(
+            documents=chunks,  # The semantic chunks we created
+            embedding=embeddings,  # The embedding model to use
+            persist_directory=str(db_path),  # Path to the database directory
+            collection_name="devfest_knowledge",  # Name of the collection
+        )
 
-    print(f"✓ Vector store created successfully")
+    print("✓ Vector store created successfully")
     print()
 
     # ========================================
@@ -166,9 +196,9 @@ def main():
     results = vectorstore.similarity_search(test_query, k=1)  # Get top 1 result
 
     if results:
-        print(f"✓ Test query successful!")
+        print("✓ Test query successful!")
         print(f"   Query: '{test_query}'")
-        print(f"   Top result preview:")
+        print("   Top result preview:")
         print("-" * 60)
         print(results[0].page_content[:200] + "...")
         print("-" * 60)

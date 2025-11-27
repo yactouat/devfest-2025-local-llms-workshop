@@ -27,9 +27,12 @@ import sqlite3
 import sys
 from typing import Annotated, Literal, Optional
 
-# IMPORTANT: Use pysqlite3 instead of built-in sqlite3
-__import__('pysqlite3')
-sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+# IMPORTANT: Use pysqlite3 instead of built-in sqlite3 if available
+try:
+    __import__('pysqlite3')
+    sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+except ImportError:
+    pass  # Use standard sqlite3
 
 import sqlite_vss
 from langchain_ollama import ChatOllama, OllamaEmbeddings
@@ -87,7 +90,7 @@ vectorstore = None
 class HandoffDecision(BaseModel):
     """
     Structured decision for agent handoffs using with_structured_output.
-    
+
     This ensures agents make clean decisions: either handoff OR provide final answer.
     No mixing of formats or unclear responses.
     """
@@ -270,7 +273,7 @@ You have just gathered information from the knowledge base. Now you must make ON
    - Set final_answer to your direct response
    - Leave handoff_to as None
 
-CRITICAL: 
+CRITICAL:
 - All factual information need to be transferred to the fact checker agent before finalizing the response.
 - Even if you are sure about the information you have retrieved, you need to transfer it to the fact checker agent for proofreading.
 
@@ -301,13 +304,13 @@ Based on the research above, make your decision: provide a final answer or hando
         # Researcher wants to handoff
         print(f"   → Researcher initiating handoff to: {decision.handoff_to}")
         print(f"   → Reason: {decision.reason}")
-        
+
         # Create the appropriate tool call based on decision
         tool_map = {
             "writer": transfer_to_writer,
             "fact_checker": transfer_to_fact_checker
         }
-        
+
         tool_to_call = tool_map.get(decision.handoff_to)
         if not tool_to_call:
             # Fallback to final answer if invalid handoff
@@ -315,7 +318,7 @@ Based on the research above, make your decision: provide a final answer or hando
                 "messages": [AIMessage(content=f"[Researcher] {research_findings}")],
                 "next_agent": "FINISH"
             }
-        
+
         # Manually create the tool call structure
         tool_call_msg = AIMessage(
             content=f"[Researcher] {research_findings}",
@@ -325,7 +328,7 @@ Based on the research above, make your decision: provide a final answer or hando
                 "id": f"call_{decision.handoff_to}"
             }]
         )
-        
+
         return {
             "messages": [tool_call_msg],
         }
@@ -445,13 +448,13 @@ Based on the context above, make your decision: provide a final answer or handof
         # Writer wants to handoff
         print(f"   → Writer initiating handoff to: {decision.handoff_to}")
         print(f"   → Reason: {decision.reason}")
-        
+
         # Create the appropriate tool call based on decision
         tool_map = {
             "researcher": transfer_to_researcher,
             "fact_checker": transfer_to_fact_checker
         }
-        
+
         tool_to_call = tool_map.get(decision.handoff_to)
         if not tool_to_call:
             # Fallback to final answer if invalid handoff
@@ -459,11 +462,11 @@ Based on the context above, make your decision: provide a final answer or handof
                 "messages": [AIMessage(content="[Writer] Invalid handoff target. Completing task.")],
                 "next_agent": "FINISH"
             }
-        
+
         # Create tool call message
         tools = [transfer_to_researcher, transfer_to_fact_checker]
         tool_node = ToolNode(tools)
-        
+
         # Manually create the tool call structure
         tool_call_msg = AIMessage(
             content="",
@@ -473,7 +476,7 @@ Based on the context above, make your decision: provide a final answer or handof
                 "id": f"call_{decision.handoff_to}"
             }]
         )
-        
+
         return {
             "messages": [tool_call_msg],
         }
@@ -598,13 +601,13 @@ Based on the verification above, make your decision: approve with final answer o
         # Fact checker wants to handoff
         print(f"   → Fact Checker initiating handoff to: {decision.handoff_to}")
         print(f"   → Reason: {decision.reason}")
-        
+
         # Create the appropriate tool call based on decision
         tool_map = {
             "researcher": transfer_to_researcher,
             "writer": transfer_to_writer
         }
-        
+
         tool_to_call = tool_map.get(decision.handoff_to)
         if not tool_to_call:
             # Fallback to final answer if invalid handoff
@@ -612,7 +615,7 @@ Based on the verification above, make your decision: approve with final answer o
                 "messages": [AIMessage(content=f"[Fact Checker] {verification_result}")],
                 "next_agent": "FINISH"
             }
-        
+
         # Manually create the tool call structure
         tool_call_msg = AIMessage(
             content=f"[Fact Checker] {verification_result}",
@@ -622,7 +625,7 @@ Based on the verification above, make your decision: approve with final answer o
                 "id": f"call_{decision.handoff_to}"
             }]
         )
-        
+
         return {
             "messages": [tool_call_msg],
         }

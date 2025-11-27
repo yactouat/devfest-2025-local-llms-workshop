@@ -24,18 +24,28 @@ import argparse
 from pathlib import Path
 import sys
 
-# IMPORTANT: Use pysqlite3 instead of built-in sqlite3
+# IMPORTANT: Use pysqlite3 instead of built-in sqlite3 if available
 # pysqlite3 supports the VSS (Vector Similarity Search) extension
 # which is required for querying vector embeddings
-__import__('pysqlite3')
-sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+try:
+    __import__('pysqlite3')
+    sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+except ImportError:
+    pass  # Use standard sqlite3
 
 # Add parent directory to path to import utils
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils import get_available_model
 
 from langchain_ollama import ChatOllama, OllamaEmbeddings
-from langchain_community.vectorstores import SQLiteVSS
+# Try to use SQLiteVSS if available, otherwise fall back to Chroma
+try:
+    import sqlite_vss  # This is the actual dependency that fails
+    from langchain_community.vectorstores import SQLiteVSS
+    USE_SQLITE = True
+except (ImportError, ModuleNotFoundError):
+    from langchain_community.vectorstores import Chroma
+    USE_SQLITE = False
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
@@ -92,7 +102,10 @@ def main():
     # Define paths
     script_dir = Path(__file__).parent
     # Database is stored at the root of the repository for sharing across demos
-    db_path = script_dir.parent / "devfest.db"
+    if USE_SQLITE:
+        db_path = script_dir.parent / "devfest.db"
+    else:
+        db_path = script_dir.parent / "chroma_db"
 
     # Validate that the database exists (created by ingest.py)
     if not db_path.exists():
@@ -112,24 +125,34 @@ def main():
     # ========================================
     # STEP 2: Load the Vector Store
     # ========================================
-    # Connect to the SQLite database and load the VSS extension
+    # Connect to the database and load the vector store
     # for vector similarity search
-    import sqlite3
-    connection = sqlite3.connect(str(db_path), check_same_thread=False)  # Allow multi-threading
-    connection.enable_load_extension(True)                                # Enable extensions
-    # row_factory determines how rows are returned from queries - sqlite3.Row allows
-    # accessing columns by name (row['column']) instead of just by index (row[0])
-    connection.row_factory = sqlite3.Row
-    import sqlite_vss
-    sqlite_vss.load(connection)                                           # Load VSS extension
-    connection.enable_load_extension(False)                               # Disable for security
 
-    # Create the vector store interface
-    vectorstore = SQLiteVSS(
-        table="devfest_knowledge",     # Same table name from ingestion
-        embedding=embeddings,          # Same embedding model from ingestion
-        connection=connection,         # SQLite connection with VSS loaded
-    )
+    if USE_SQLITE:
+        import sqlite3
+        connection = sqlite3.connect(str(db_path), check_same_thread=False)  # Allow multi-threading
+        connection.enable_load_extension(True)                                # Enable extensions
+        # row_factory determines how rows are returned from queries - sqlite3.Row allows
+        # accessing columns by name (row['column']) instead of just by index (row[0])
+        connection.row_factory = sqlite3.Row
+        import sqlite_vss
+        sqlite_vss.load(connection)                                           # Load VSS extension
+        connection.enable_load_extension(False)                               # Disable for security
+
+        # Create the vector store interface
+        vectorstore = SQLiteVSS(
+            table="devfest_knowledge",     # Same table name from ingestion
+            embedding=embeddings,          # Same embedding model from ingestion
+            connection=connection,         # SQLite connection with VSS loaded
+        )
+    else:
+        # Use Chroma vector store
+        vectorstore = Chroma(
+            persist_directory=str(db_path),
+            embedding_function=embeddings,
+            collection_name="devfest_knowledge",
+        )
+
     print("✓ Vector store loaded")
     print()
 

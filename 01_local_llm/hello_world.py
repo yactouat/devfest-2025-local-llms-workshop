@@ -94,9 +94,9 @@ def main():
     if args.thinking:
         print("### Final Answer ###")
     print(response.content)
-    
+
     print("-" * 60)
-    
+
     print()
 
     print("Observation:")

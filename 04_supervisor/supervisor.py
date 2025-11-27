@@ -27,9 +27,12 @@ import sqlite3
 import sys
 from typing import Annotated, Literal
 
-# IMPORTANT: Use pysqlite3 instead of built-in sqlite3
-__import__('pysqlite3')
-sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+# IMPORTANT: Use pysqlite3 instead of built-in sqlite3 if available
+try:
+    __import__('pysqlite3')
+    sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+except ImportError:
+    pass  # Use standard sqlite3
 
 import sqlite_vss
 from langchain_ollama import ChatOllama, OllamaEmbeddings
@@ -187,9 +190,9 @@ def writer_agent(state: SupervisorState) -> dict:
 
     # Prepare messages for writer
     system_prompt = "You are a professional writer for DevFest Corp. Based on the research provided, write a clear, concise answer to the user's question."
-    
+
     research_context = chr(10).join(context) if context else "No research context provided."
-    
+
     user_prompt = f"""User Question: {user_question}
 
 Research Context:

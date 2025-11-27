@@ -32,6 +32,7 @@ def get_available_model(prefer_thinking: bool = False, use_cloud: bool = False) 
         >>> model = get_available_model(prefer_thinking=True)
         >>> llm = ChatOllama(model=model)
     """
+    return "llama3.1:latest"
     if use_cloud:
         return "gemini-2.5-flash"
     else:

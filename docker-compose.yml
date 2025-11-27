@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  # Application principale
+  app:
+    build: .
+    container_name: devfest-llm-workshop
+    volumes:
+      - ./data:/app/data
+      # Décommentez la ligne suivante si vous avez un fichier .env
+      # - ./.env:/app/.env:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+      - OLLAMA_HOST=http://host.docker.internal:11434
+    network_mode: "host"  # Permet de se connecter à Ollama sur localhost:11434
+    stdin_open: true
+    tty: true
+    command: /bin/bash
+
