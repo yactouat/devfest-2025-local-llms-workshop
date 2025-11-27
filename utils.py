@@ -10,7 +10,7 @@ import subprocess
 import sys
 
 
-def get_available_model(prefer_thinking: bool = False) -> str:
+def get_available_model(prefer_thinking: bool = False, use_cloud: bool = False) -> str:
     """
     Get an available Ollama model, checking for qwen3:8b first, then llama3.1:latest.
 
@@ -33,43 +33,46 @@ def get_available_model(prefer_thinking: bool = False) -> str:
         >>> model = get_available_model(prefer_thinking=True)
         >>> llm = ChatOllama(model=model)
     """
-    try:
-        # Get list of available models from Ollama
-        result = subprocess.run(
-            ["ollama", "list"],
-            capture_output=True,
-            text=True,
-            check=True
-        )
+    if use_cloud:
+        return "gemini-2.5-flash"
+    else:
+        try:
+            # Get list of available models from Ollama
+            result = subprocess.run(
+                ["ollama", "list"],
+                capture_output=True,
+                text=True,
+                check=True
+            )
 
-        available_models = result.stdout.lower()
+            available_models = result.stdout.lower()
 
-        # Check which models are available
-        has_qwen = "qwen3:8b" in available_models
-        has_llama = "llama3.1:latest" in available_models or "llama3.1:latest" in available_models
+            # Check which models are available
+            has_qwen = "qwen3:8b" in available_models
+            has_llama = "llama3.1:latest" in available_models or "llama3.1:latest" in available_models
 
-        # Determine which model to return based on preference and availability
-        if prefer_thinking:
-            if has_qwen:
-                return "qwen3:8b"
-            elif has_llama:
-                print("⚠️  Warning: qwen3:8b not found, using llama3.1:latest instead", file=sys.stderr)
-                return "llama3.1:latest"
-        else:
-            # For non-thinking use cases, prefer llama3.1 but fall back to qwen3
-            if has_llama:
-                return "llama3.1:latest"
-            elif has_qwen:
-                print("⚠️  Warning: llama3.1:latest not found, using qwen3:8b instead", file=sys.stderr)
-                return "qwen3:8b"
+            # Determine which model to return based on preference and availability
+            if prefer_thinking:
+                if has_qwen:
+                    return "qwen3:8b"
+                elif has_llama:
+                    print("⚠️  Warning: qwen3:8b not found, using llama3.1:latest instead", file=sys.stderr)
+                    return "llama3.1:latest"
+            else:
+                # For non-thinking use cases, prefer llama3.1 but fall back to qwen3
+                if has_llama:
+                    return "llama3.1:latest"
+                elif has_qwen:
+                    print("⚠️  Warning: llama3.1:latest not found, using qwen3:8b instead", file=sys.stderr)
+                    return "qwen3:8b"
 
-        # Neither model is available
-        raise RuntimeError(
-            "Neither qwen3:8b nor llama3.1:latest is available in Ollama.\n"
-            "Please install at least one of them:\n"
-            "  ollama pull qwen3:8b\n"
-            "  ollama pull llama3.1:latest"
-        )
+            # Neither model is available
+            raise RuntimeError(
+                "Neither qwen3:8b nor llama3.1:latest is available in Ollama.\n"
+                "Please install at least one of them:\n"
+                "  ollama pull qwen3:8b\n"
+                "  ollama pull llama3.1:latest"
+            )
 
     except subprocess.CalledProcessError as e:
         raise RuntimeError(

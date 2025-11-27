@@ -24,7 +24,9 @@ from utils import get_available_model, get_google_model, check_google_api_key
 
 from langchain_ollama import ChatOllama
 from langchain_google_genai import ChatGoogleGenerativeAI
+from dotenv import load_dotenv
 
+load_dotenv()
 
 def main():
     # Parse command-line arguments

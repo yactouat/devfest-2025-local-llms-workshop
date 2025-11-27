@@ -1,5 +1,6 @@
 .env
 *.db
+.env
 __pycache__
 *.session.sql
 venv
