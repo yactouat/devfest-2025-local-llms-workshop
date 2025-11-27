@@ -49,7 +49,48 @@ To deactivate the virtual environment when you're done:
 deactivate
 ```
 
+## Vector Database Options
+
+This workshop provides **two implementations** for vector storage, allowing you to choose based on your needs:
+
+### Option 1: SQLiteVSS (Classic - Default)
+Uses SQLite with the Vector Similarity Search (VSS) extension via `pysqlite3-binary`.
+
+**Folders:** `02_rag_lcel/`, `03_langgraph_react/`, `04_supervisor/`, `05_network/`
+
+**Pros:**
+- Lightweight single-file database (`devfest.db`)
+- Good for learning and development
+- Minimal dependencies
+
+**Cons:**
+- Requires `pysqlite3-binary` (not standard Python sqlite3)
+- Platform-specific binary dependencies
+
+### Option 2: ChromaDB (Alternative)
+Uses ChromaDB, a modern AI-native vector database.
+
+**Folders:** `02_rag_lcel_chromadb/`, `03_langgraph_react_chromadb/`, `04_supervisor_chromadb/`, `05_network_chromadb/`
+
+**Pros:**
+- Pure Python implementation (no binary dependencies)
+- Production-ready with better scalability
+- Modern API designed for AI applications
+- Better cross-platform compatibility
+
+**Cons:**
+- Directory-based storage (`chroma_db/`)
+- Slightly larger footprint
+
+### How to Choose?
+- **Use SQLiteVSS** if you want a simple, single-file database for learning
+- **Use ChromaDB** if you want better compatibility and production-ready features
+
+Both implementations work identically from a usage perspective - just use the corresponding folder's scripts!
+
 ## Runnable Scripts
+
+### Classic SQLiteVSS Implementation
 
 ### 01_local_llm/hello_world.py
 ```bash
@@ -100,3 +141,51 @@ python3 05_network/network.py [--interactive] [--question "YOUR_QUESTION"] [--th
 - `--thinking`: Use qwen3:8b thinking model for agent decisions
 
 **Note**: Run `python3 02_rag_lcel/ingest.py` first to create the knowledge base used by the Researcher agent.
+
+---
+
+### ChromaDB Alternative Implementation
+
+All scripts have ChromaDB equivalents in the `*_chromadb` folders. Simply replace the folder name in the commands:
+
+#### 02_rag_lcel_chromadb/ingest.py
+```bash
+python3 02_rag_lcel_chromadb/ingest.py
+```
+
+#### 02_rag_lcel_chromadb/query.py
+```bash
+python3 02_rag_lcel_chromadb/query.py [--interactive] [--question "YOUR_QUESTION"] [--thinking]
+```
+- Same options as the classic version
+
+#### 03_langgraph_react_chromadb/agent.py
+```bash
+python3 03_langgraph_react_chromadb/agent.py [--interactive] [--question "YOUR_QUESTION"] [--thinking]
+```
+- Same options as the classic version
+
+**Note**: Run `python3 02_rag_lcel_chromadb/ingest.py` first to create the ChromaDB knowledge base.
+
+#### 04_supervisor_chromadb/supervisor.py
+```bash
+python3 04_supervisor_chromadb/supervisor.py [--interactive] [--question "YOUR_QUESTION"] [--thinking]
+```
+- Same options as the classic version
+
+**Note**: Run `python3 02_rag_lcel_chromadb/ingest.py` first.
+
+#### 05_network_chromadb/network.py
+```bash
+python3 05_network_chromadb/network.py [--interactive] [--question "YOUR_QUESTION"] [--thinking]
+```
+- Same options as the classic version
+
+**Note**: Run `python3 02_rag_lcel_chromadb/ingest.py` first.
+
+### Database Storage Locations
+
+- **SQLiteVSS**: Creates `devfest.db` (single file) in the project root
+- **ChromaDB**: Creates `chroma_db/` (directory) in the project root
+
+Both are automatically ignored by git (see `.gitignore`).
