@@ -7,3 +7,5 @@ langgraph
 pydantic
 python-dotenv
 chromadb
+pysqlite3-binary
+sqlite-vss

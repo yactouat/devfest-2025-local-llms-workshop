@@ -44,6 +44,10 @@ Once activated, you'll see `(venv)` in your terminal prompt. You can then instal
 pip install -r requirements.txt
 ```
 
+> **Note for ARM architectures:** If you're using an ARM-based system (e.g., Apple Silicon, ARM Linux) and encounter issues with `pysqlite3-binary` and/or `sqlite-vss`, consider using the ChromaDB alternative instead. To do so, remove the following packages from `requirements.txt` before installation:
+> - `pysqlite3-binary`
+> - `sqlite-vss`
+
 To deactivate the virtual environment when you're done:
 ```bash
 deactivate
